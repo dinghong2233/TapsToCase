@@ -1,80 +1,186 @@
+import random
+import string
 import tkinter as tk
+from tkinter import ttk
 
 
-class Application(tk.Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.master = master
-        self.pack()
-        self.create_widgets()
+def Pix(scalar):
+    return scalar * 16
 
-    def create_widgets(self):
-        self.timer_label = tk.Label(self, text="0")
-        self.timer_label.pack(side="top")
+def RandomColor():
+    return '#' + ''.join(random.choice(string.digits) for _ in range(6))
 
-        self.start_button = tk.Button(self)
-        self.start_button["text"] = "Start"
-        self.start_button["command"] = self.start_timer
-        self.start_button.pack(side="left")
+class MainPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(80)
+        self.f['height'] = Pix(80)
+        self.f['bg'] = RandomColor()
 
-        self.stop_button = tk.Button(self)
-        self.stop_button["text"] = "Stop"
-        self.stop_button["command"] = self.stop_timer
-        self.stop_button.pack(side="right")
+        tpbr = tk.Frame(self.f)
+        tpbr.grid_propagate(False)
+        tpbr.grid(row=0, column=0)
+        self.topbar = Topbar(self.l, tpbr)
 
-    def start_timer(self):
-        self.timer_label.after(1000, self.update_timer)
+        cntl = tk.Frame(self.f, width=Pix(80), height=Pix(72))
+        cntl.grid_propagate(False)
+        cntl.grid(row=1, column=0)
+        self.control = ControlPane(self.l, cntl)
 
-    def stop_timer(self):
-        self.timer_label.after_cancel(self.update_timer)
+class MirrorPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(80)
+        self.f['bg'] = RandomColor()
 
-    def update_timer(self):
-        current_time = int(self.timer_label["text"])
-        current_time += 1
-        self.timer_label["text"] = str(current_time)
-        self.timer_label.after(1000, self.update_timer)
+class Topbar:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(80)
+        self.f['height'] = Pix(4)
+        self.f['bg'] = RandomColor()
+
+        self.devices = ttk.Combobox(self.f, state='readonly', values=['Samsung S10', 'Windows', 'iPhone14'])
+        self.devices['height'] = Pix(4)
+        self.devices.grid_propagate(False)
+        self.devices.grid(row=0, column=0)
+
+class ControlPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(80)
+        self.f['height'] = Pix(76)
+        self.f['bg'] = RandomColor()
+
+        actn = tk.Frame(self.f)
+        actn.grid_propagate(False)
+        actn.grid(row=0, column=0)
+        self.action = ActionPane(self.l, actn)
+
+        bord = tk.Frame(self.f)
+        bord.grid_propagate(False)
+        bord.grid(row=0, column=1)
+        self.board = BoardPane(self.l, bord)
+
+class ActionPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f.grid_rowconfigure(0, weight=1)
+        self.f.grid_columnconfigure(0, weight=1)
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(76)
+        self.f['bg'] = RandomColor()
+
+        self.canvas = tk.Canvas(self.f, bg=RandomColor())
+        self.canvas.grid(row=0, column=0, sticky='news')
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.scrollbar = tk.Scrollbar(self.f, orient="vertical", command=self.canvas.yview)
+        self.scrollbar.grid(row=0, column=1, sticky='ns')
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.action_list = tk.Frame(self.canvas, bg=RandomColor())
+        self.canvas.create_window((0, 0), window=self.action_list, anchor='nw')
+
+        self.Test()
+
+    def Test(self):
+        rows = 80
+        for i in range(rows):
+            action = ActionItem(self.l, tk.Frame(self.action_list))
+            self.Add(action)
+
+    def Update(self, actions):
+        for i, a in enumerate(actions):
+            a.grid(row=i, column=0, sticky='news')
+        self.actions = actions
+        self.action_list.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+
+    def Add(self, action):
+        if not hasattr(self, 'actions'):
+            self.actions = []
+
+        action.f.grid(row=len(self.actions), column=0, sticky='news')
+        self.actions.append(action)
+        self.action_list.update_idletasks()
+        self.canvas.config(scrollregion=self.canvas.bbox("all"))
+
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+class ActionItem:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(6)
+        self.f['bg'] = RandomColor()
+
+class BoardPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(76)
+        self.f['bg'] = RandomColor()
+
+        oprt = tk.Frame(self.f)
+        oprt.grid_propagate(False)
+        oprt.grid(row=0, column=0)
+        self.operation = OperationPane(self.l, oprt)
+
+        elem = tk.Frame(self.f)
+        elem.grid_propagate(False)
+        elem.grid(row=1, column=0)
+        self.element = ElementPane(self.l, elem)
+
+class OperationPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(38)
+        self.f['bg'] = RandomColor()
+
+class ElementPane:
+    def __init__(self, listener, frame):
+        self.l = listener
+        self.f = frame
+        self.f['width'] = Pix(40)
+        self.f['height'] = Pix(38)
+        self.f['bg'] = RandomColor()
+
+class Listener:
+    def __init__(self, app):
+        self.app = app
+
+class Application:
+    def __init__(self):
+        self.f = tk.Tk()
+        self.f.title("Taps To Case")
+        self.f.maxsize(Pix(120), Pix(80))
+        self.f.resizable(False, False)
+        self.l = Listener(self)
+
+        main = tk.Frame(self.f)
+        main.grid_propagate(False)
+        main.grid(row=0, column=0)
+        self.main = MainPane(self.l, main)
+
+        mirr = tk.Frame(self.f)
+        main.grid_propagate(False)
+        mirr.grid(row=0, column=1)
+        self.mirror = MirrorPane(self.l, mirr)
+
+    def Run(self):
+        self.f.mainloop()
 
 if __name__ == '__main__':
-    # root = tk.Tk()
-    # app = Application(master=root)
-    # app.mainloop()
-    root = tk.Tk()  # create root window
-    root.title("Taps To Case")  # title of the GUI window
-    root.maxsize(1280, 720)  # specify the max size the window can expand to
-    root.config(bg="skyblue")  # specify background color
-
-    # Create left and right frames
-    left_frame = tk.Frame(root, width=200, height=400, bg='grey')
-    left_frame.grid(row=0, column=0, padx=10, pady=5)
-
-    right_frame = tk.Frame(root, width=650, height=400, bg='grey')
-    right_frame.grid(row=0, column=1, padx=10, pady=5)
-
-    # Create frames and labels in left_frame
-    tk.Label(left_frame, text="Original Image").grid(row=0, column=0, padx=5, pady=5)
-
-    # load image to be "edited"
-    image = tk.PhotoImage(file="C:/r/TapsToCase/app/Photo.png")
-    image_sub1 = image.subsample(16, 16)  # resize image using subsample
-    image_sub2 = image.subsample(4, 4)  # resize image using subsample
-
-    tk.Label(left_frame, image=image_sub1).grid(row=1, column=0, padx=5, pady=5)
-
-    # Display image in right_frame
-    tk.Label(right_frame, image=image_sub2).grid(row=0,column=0, padx=5, pady=5)
-
-    # Create tool bar frame
-    tool_bar = tk.Frame(left_frame, width=180, height=185)
-    tool_bar.grid(row=2, column=0, padx=5, pady=5)
-
-    # Example labels that serve as placeholders for other widgets
-    tk.Label(tool_bar, text="Tools", relief=tk.RAISED).grid(row=0, column=0, padx=5, pady=3, ipadx=10)  # ipadx is padding inside the Label widget
-    tk.Label(tool_bar, text="Filters", relief=tk.RAISED).grid(row=0, column=1, padx=5, pady=3, ipadx=10)
-
-    # Example labels that could be displayed under the "Tool" menu
-    tk.Label(tool_bar, text="Select").grid(row=1, column=0, padx=5, pady=5)
-    tk.Label(tool_bar, text="Crop").grid(row=2, column=0, padx=5, pady=5)
-    tk.Label(tool_bar, text="Rotate & Flip").grid(row=3, column=0, padx=5, pady=5)
-    tk.Label(tool_bar, text="Resize").grid(row=4, column=0, padx=5, pady=5)
-    tk.Label(tool_bar, text="Exposure").grid(row=5, column=0, padx=5, pady=5)
-    root.mainloop()
+    app = Application()
+    app.Run()
